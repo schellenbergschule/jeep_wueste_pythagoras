@@ -1,0 +1,266 @@
+
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Jeep-Abenteuer – Wüsten-Graph (v3, Helikopter im Spielfeld – 2-zeilig)</title>
+  <style>
+    :root{ --sand-50:#fff8e6;--sand-100:#fff2d1;--sand-200:#fbe7b5;--sand-300:#eed39a;--sand-400:#d7b97c;--sand-500:#c3a56a; --edge:#b68a3a;--edge-visited:#b34d1e;--edge-label:#5d430f;--accent:#1f6f8b;--accent-2:#b34d1e }
+    *{box-sizing:border-box}
+    body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;background:linear-gradient(180deg,var(--sand-100),var(--sand-50));color:#2b2b2b}
+    header{display:flex;align-items:center;justify-content:space-between;padding:.9rem 1.2rem;background:linear-gradient(180deg,var(--sand-400),var(--sand-300));border-bottom:3px solid var(--sand-500);position:sticky;top:0;z-index:10}
+    .title{display:flex;gap:.6rem;align-items:center;font-weight:800}
+    .container{max-width:1200px;margin:0 auto;padding:1rem 1.25rem 2rem}
+    .hud{display:grid;grid-template-columns:1.4fr .8fr .8fr auto auto;gap:.8rem;align-items:center;margin-bottom:.8rem}
+    .fuel{position:relative;height:30px;border-radius:12px;border:2px solid var(--sand-500);overflow:hidden;background:rgba(0,0,0,.08)}
+    .fuel .bar{position:absolute;inset:0 0 0 0;width:66.7%;background:linear-gradient(90deg,#76c893,#4caf50);transition:width .25s ease}
+    .fuel .label{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-weight:800;text-shadow:0 1px 0 rgba(255,255,255,.7)}
+    .stat{background:rgba(0,0,0,.06);border:2px solid var(--sand-500);border-radius:10px;padding:.5rem .75rem;text-align:center;font-weight:700}
+    .btn{appearance:none;border:none;border-radius:10px;padding:.55rem .85rem;font-weight:800;cursor:pointer;color:#fff;background:var(--accent);box-shadow:0 2px 0 #155063}
+    .btn.secondary{background:var(--accent-2);box-shadow:0 2px 0 #7f3715}
+    .mapCard{border:3px solid var(--sand-500);border-radius:18px;background:var(--sand-50);box-shadow:0 8px 0 rgba(0,0,0,.08)}
+    #edges line{stroke:var(--edge);stroke-width:3;stroke-linecap:round;opacity:.75}
+    #edges line.used{stroke:var(--edge-visited);opacity:1;stroke-width:4}
+    .edge-label{font-size:13px;font-weight:800;fill:var(--edge-label);paint-order:stroke;stroke:rgba(255,255,255,.9);stroke-width:3}
+    .fuel-label{font-size:12px;font-weight:800;fill:#2e7d32;paint-order:stroke;stroke:rgba(255,255,255,.9);stroke-width:3}
+    .reachable circle{stroke:#ff9800 !important;stroke-width:3 !important}
+    .currentMarker circle{stroke:#000;stroke-width:3}
+    .legend{display:flex;gap:1rem;align-items:center;padding:.6rem 1rem;border-top:3px solid var(--sand-500)}
+    .dot{width:16px;height:16px;border-radius:50%;display:inline-block;border:2px solid #5d430f}
+    .dot.base{background:#e6f3f7;border-color:#1f6f8b}.dot.normal{background:#ffe9b8}.dot.visited{background:#c7f2c7;border-color:#2e7d32}.dot.exit{background:#fff;border-color:#000}
+    .overlay{position:fixed;inset:0;background:rgba(0,0,0,.35);display:none;align-items:center;justify-content:center;z-index:100;padding:1rem}
+    .overlay.show{display:flex}
+    .modal{max-width:760px;width:min(760px,92vw);background:#fffdf8;border-radius:16px;border:3px solid var(--sand-500);box-shadow:0 14px 40px rgba(0,0,0,.25);padding:1rem 1rem 1.25rem}
+    .modal h2{margin:.25rem 0 .5rem}
+    .row{display:flex;gap:.5rem;align-items:center}
+    .modal input{padding:.6rem .7rem;font-size:1rem;border-radius:10px;border:2px solid var(--sand-500);flex:1}
+    #toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#333;color:#fff;padding:.6rem .9rem;border-radius:10px;opacity:0;pointer-events:none;transition:opacity .25s ease;z-index:200}
+    #toast.show{opacity:1}
+    /* SVG Helikopter-Button (oben links im Spielfeld) */
+    .svgBtnLabel{font-size:13px;font-weight:800;fill:#fff; paint-order:stroke; stroke:rgba(0,0,0,.45); stroke-width:2}
+    .svgBtn{cursor:pointer}
+    /* Single-Choice: klare Zeilenführung */
+    #heliOverlay label.radio{display:block;margin:.35rem 0;}
+  </style>
+</head>
+<body>
+  <header>
+    <div class="title"><span style="font-size:1.4rem">🚗</span>Jeep-Abenteuer – Wüsten-Graph</div>
+    <div class="subtitle">Tank bis 15 L | Helikopter manuell | Bewegung nur mit genug Sprit.</div>
+  </header>
+
+  <div id="app" class="container">
+    <div class="hud">
+      <div class="fuel" aria-label="Tankanzeige">
+        <div id="fuelBar" class="bar"></div>
+        <div id="fuelLabel" class="label">10 / 15 L</div>
+      </div>
+      <div class="stat">Züge: <span id="moves">0</span></div>
+      <div class="stat">Besuchte Orte: <span id="visited">0</span>/20</div>
+      <button id="resetBtn" class="btn secondary" title="Spiel zurücksetzen">Neu starten</button>
+      <button id="fsBtnHud" class="btn" title="Vollbild an/aus">⛶ Vollbild</button>
+    </div>
+
+    <div class="mapCard">
+      <svg id="desert" viewBox="0 0 1200 800" width="100%" height="auto" aria-label="Wüstenkarte">
+        <defs>
+          <linearGradient id="skyGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#ffe6b0"/><stop offset="60%" stop-color="#fff1d6"/><stop offset="100%" stop-color="#fff8e6"/></linearGradient>
+          <filter id="markerShadow" x="-50%" y="-50%" width="200%" height="200%"><feDropShadow dx="0" dy="1" stdDeviation="2" flood-color="rgba(0,0,0,.35)"/></filter>
+        </defs>
+        <rect x="0" y="0" width="1200" height="800" fill="url(#skyGrad)"/>
+        <g id="edges"></g>
+        <polyline id="route" points="" fill="none" stroke="var(--edge-visited)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" opacity="0.9"/>
+
+        <!-- Helikopter-Button (oben links im Spielfeld, zweizeilig) -->
+        <g id="heliSvgBtn" class="svgBtn" transform="translate(20,24)" aria-label="Helikopter-Notration öffnen">
+          <rect x="0" y="0" rx="8" ry="8" width="170" height="48" fill="#1f6f8b" stroke="#155063" stroke-width="2" filter="url(#markerShadow)"/>
+          <text x="12" y="20" class="svgBtnLabel">🚁 Helikopter</text>
+          <text x="12" y="38" class="svgBtnLabel">(einmalig)</text>
+        </g>
+      </svg>
+      <div class="legend">
+        <div class="item"><span class="dot normal"></span> Ort (Tank: <span style="color:#2e7d32;font-weight:800">+2/3/4 L</span> – getunt)</div>
+        <div class="item"><span class="dot visited"></span> besucht</div>
+        <div class="item"><span class="dot base"></span> Basisstation</div>
+        <div class="item"><span class="dot exit"></span> Ausgang (oben rechts)</div>
+      </div>
+    </div>
+
+    <p class="hint">ℹ️ Fahrten sind nur möglich, wenn der <strong>Sprit für die Strecke reicht</strong>. Helikopter: <strong>manuell</strong> abrufen (+5 L, einmalig).</p>
+  </div>
+
+  <!-- Start Overlay -->
+  <div id="startOverlay" class="overlay show"><div class="modal centered"><h2>Jeep bereit.</h2><p><strong>Schaffst du es, mit dem Jeep die Wüste zu durchqueren, bevor der Sprit ausgeht?</strong><br>Wähle deinen Weg klug – tanke an den richtigen Orten nach und plane so, dass du zur passenden Zeit <em>Spritnachschub</em> bekommst.</p><div class="row" style="justify-content:center"><button id="startBtn" class="btn">Spiel starten</button></div></div></div>
+
+  <!-- Task Modal -->
+  <div id="taskOverlay" class="overlay"><div class="modal"><h2 id="taskTitle">Ort</h2><p id="taskText">Aufgabe</p><div class="row"><input id="answerInput" type="text" inputmode="decimal" placeholder="Deine Lösung (z. B. 14.14)"/><button id="submitAnswer" class="btn">Antwort prüfen</button></div><p class="hint">Toleranz ±0,01 | Dezimal: Punkt oder Komma</p><div class="row" style="justify-content:flex-end"><button id="closeTask" class="btn secondary">Schließen</button></div></div></div>
+
+  <!-- Helicopter Modal (Single-Choice – Antworten je Zeile) -->
+  <div id="heliOverlay" class="overlay"><div class="modal"><h2>✈️ Helikopter – Single-Choice</h2><p><strong>Wie lautet der Satz von Pythagoras?</strong> Wähle eine Antwort:</p>
+    <label class="radio"><input type="radio" name="sc" value="a"> a) A quadrat plus B quadrat gleich C quadrat</label>
+    <label class="radio"><input type="radio" name="sc" value="b"> b) Kathete im Quadrat mal Kathete im Quadrat gleich Hypotenuse im Quadrat</label>
+    <label class="radio"><input type="radio" name="sc" value="c"> c) a mal b = c</label>
+    <label class="radio"><input type="radio" name="sc" value="d"> d) Zweimal Kathete im Quadrat gleich Hypotenuse im Quadrat</label>
+    <div class="row" style="justify-content:flex-end;margin-top:.5rem"><button id="heliSubmit" class="btn">Antwort prüfen (+5 L)</button></div>
+  </div></div>
+
+  <!-- End Overlay -->
+  <div id="endOverlay" class="overlay"><div class="modal centered"><h2 id="endTitle">Mission</h2><p id="endText">Ergebnis</p><p>Punkte: <strong id="score">0</strong></p><div class="row" style="justify-content:center"><button id="playAgain" class="btn">Nochmal spielen</button></div></div></div>
+
+  <div id="toast" role="status" aria-live="polite"></div>
+
+  <script>
+    const maxFuel = 15;
+    const locations = [
+      { name: "Oase der Ruhe", a:3, b:4 }, { name: "Verlassene Tankstelle", a:6, b:8 }, { name: "Ruine des Königs", a:5, b:12 },
+      { name: "Sanddünen-Pass", a:7, b:24 }, { name: "Kamelpfad", a:9, b:12 }, { name: "Alte Karawanserei", a:8, b:15 },
+      { name: "Schattental", a:10, b:10 }, { name: "Fata Morgana", a:12, b:16 }, { name: "Salzsee", a:20, b:21 },
+      { name: "Steinbruch", a:15, b:36 }, { name: "Nomadenlager", a:9, b:40 }, { name: "Windschlucht", a:11, b:60 },
+      { name: "Sonnenplateau", a:13, b:84 }, { name: "Dünenmeer", a:18, b:24 }, { name: "Oase der Hoffnung", a:21, b:28 },
+      { name: "Geisterstadt", a:5, b:5 }, { name: "Sandsturmzone", a:14, b:48 }, { name: "Verborgene Quelle", a:30, b:40 },
+      { name: "Schlucht der Schatten", a:24, b:32 }, { name: "Basisstation", a:36, b:48 }
+    ];
+    const coords = [
+      [250,350],[430,300],[150,220],[600,280],[780,320],[360,460],[540,380],
+      [900,420],[1030,360],[840,220],[1060,520],[980,180],[700,160],
+      [620,540],[420,560],[280,520],[780,600],[260,420],[520,620],[1000,680]
+    ];
+
+    const START = { name: 'Jeep-Start', coord:[100,700] };
+    const EXIT  = { name: 'Ausgang der Wüste', coord:[1120,120] };
+
+    const adj = {
+      'S':['L0'], 'E':['L19','L10','L8'], 'L0':['S','L2','L17','L5','L1','L6'], 'L2':['L0','L1','L6'], 'L1':['L0','L2','L3','L5','L6'],
+      'L3':['L1','L6','L12','L4','L9'], 'L6':['L1','L3','L5','L13','L4','L2','L0'], 'L5':['L0','L1','L17','L14','L6','L13'], 'L17':['L0','L5','L15'],
+      'L15':['L17','L14'], 'L14':['L5','L15','L13','L18','L16'], 'L13':['L6','L5','L14','L18','L16'], 'L18':['L14','L13','L16'], 'L16':['L13','L18','L10','L19','L14'],
+      'L10':['L16','L7','L8','E'], 'L19':['L16','E'], 'L7':['L8','L10','L4','L9','L12'], 'L8':['L7','L11','L10','E'], 'L11':['L9','L12','L8'], 'L9':['L12','L3','L7','L11'], 'L12':['L3','L9','L11','L4','L7'], 'L4':['L3','L12','L7','L6']
+    };
+
+    let fuel = 10; let moves = 0; let visited = new Set(); let baseVisited=false; let heliUsed=false; let gameOver=false; let currentKey='S'; let currentTask=null; let locationRewards = Array(locations.length).fill(2);
+
+    const svg=document.getElementById('desert'); const edgesLayer=document.getElementById('edges'); const route=document.getElementById('route'); const fuelBar=document.getElementById('fuelBar'); const fuelLabel=document.getElementById('fuelLabel'); const movesEl=document.getElementById('moves'); const visitedEl=document.getElementById('visited'); const toast=document.getElementById('toast');
+
+    // Jeep-Emoji (animiert): folgt der aktuellen Position
+    const jeepEmoji = document.createElementNS('http://www.w3.org/2000/svg','text');
+    jeepEmoji.textContent = '🚙';
+    jeepEmoji.setAttribute('text-anchor','middle');
+    jeepEmoji.setAttribute('font-size','22');
+    jeepEmoji.setAttribute('paint-order','stroke');
+    jeepEmoji.setAttribute('stroke','rgba(255,255,255,.9)');
+    jeepEmoji.setAttribute('stroke-width','2');
+    jeepEmoji.setAttribute('filter','url(#markerShadow)');
+    jeepEmoji.setAttribute('pointer-events','none');
+    svg.appendChild(jeepEmoji);
+
+    // Animationszustand und Position
+    let jeepX, jeepY; let isAnimating = false;
+    [jeepX, jeepY] = START.coord.slice();
+
+    function updateJeepEmoji(){
+      const x = jeepX, y = jeepY;
+      jeepEmoji.setAttribute('x', x);
+      jeepEmoji.setAttribute('y', y + 6);
+      svg.appendChild(jeepEmoji); // nach vorne holen
+    }
+
+    function animateJeepTo(targetKey, opts={}, onDone){
+      const speed = opts.speed || 300; // px/s
+      const [sx, sy] = [jeepX, jeepY];
+      const [tx, ty] = keyToCoord(targetKey);
+      const dist = Math.hypot(tx - sx, ty - sy);
+      const duration = Math.max(300, Math.min(1600, (dist / speed) * 1000));
+      const start = performance.now();
+      isAnimating = true;
+      function easeInOut(t){ return t < 0.5 ? 2*t*t : 1 - Math.pow(-2*t+2,2)/2; }
+      function step(now){
+        const t = Math.min(1, (now - start) / duration);
+        const e = easeInOut(t);
+        jeepX = sx + (tx - sx) * e;
+        jeepY = sy + (ty - sy) * e;
+        updateJeepEmoji();
+        if (t < 1) requestAnimationFrame(step);
+        else { jeepX = tx; jeepY = ty; updateJeepEmoji(); isAnimating = false; if (typeof onDone==='function') onDone(); }
+      }
+      requestAnimationFrame(step);
+    }
+
+    const startOverlay=document.getElementById('startOverlay'); const startBtn=document.getElementById('startBtn');
+    const taskOverlay=document.getElementById('taskOverlay'); const taskTitle=document.getElementById('taskTitle'); const taskText=document.getElementById('taskText'); const answerInput=document.getElementById('answerInput'); const submitAnswer=document.getElementById('submitAnswer'); const closeTask=document.getElementById('closeTask');
+    const heliOverlay=document.getElementById('heliOverlay'); const heliSubmit=document.getElementById('heliSubmit');
+    const endOverlay=document.getElementById('endOverlay'); const endTitle=document.getElementById('endTitle'); const endText=document.getElementById('endText'); const scoreEl=document.getElementById('score'); const playAgain=document.getElementById('playAgain');
+
+    const fsBtnHud=document.getElementById('fsBtnHud');
+    const heliSvgBtn=document.getElementById('heliSvgBtn');
+
+    function showToast(msg){ toast.textContent=msg; toast.classList.add('show'); clearTimeout(showToast._t); toast._t=setTimeout(()=>toast.classList.remove('show'),2000); }
+    function parseNumber(str){ if(!str) return null; const v=parseFloat((str+'').trim().replace(',','.')); return Number.isFinite(v)?v:null; }
+
+    // Controls
+    startBtn.addEventListener('click', ()=> startOverlay.classList.remove('show'));
+    submitAnswer.addEventListener('click', checkAnswer);
+    closeTask.addEventListener('click', ()=>{ taskOverlay.classList.remove('show'); strandedCheck(); });
+    fsBtnHud.addEventListener('click', toggleFullscreen);
+    heliSvgBtn.addEventListener('click', ()=>{ if(heliUsed){ showToast('Helikopter bereits genutzt.'); return; } heliOverlay.classList.add('show'); });
+    playAgain.addEventListener('click', ()=>{ endOverlay.classList.remove('show'); resetGame(); startOverlay.classList.add('show'); });
+
+    function keyToCoord(k){ if(k==='S')return START.coord; if(k==='E')return EXIT.coord; return coords[parseInt(k.slice(1))]; }
+    function keyToName(k){ if(k==='S')return START.name; if(k==='E')return EXIT.name; return locations[parseInt(k.slice(1))].name; }
+    function edgePairKey(a,b){ return a<b?`${a}-${b}`:`${b}-${a}`; }
+    function computeEdgeCost(a,b){ const [x1,y1]=keyToCoord(a),[x2,y2]=keyToCoord(b); const dist=Math.hypot(x2-x1,y2-y1); return Math.max(1, Math.round(dist/90)); }
+
+    function computeRewards(){ const incidentCosts={}; const pairs=new Set(); Object.keys(adj).forEach(a=>{ adj[a].forEach(b=>{ const pk=edgePairKey(a,b); if(pairs.has(pk))return; pairs.add(pk); const c=computeEdgeCost(a,b); if(a.startsWith('L'))(incidentCosts[a] ||= []).push(c); if(b.startsWith('L'))(incidentCosts[b] ||= []).push(c); }); }); function dPL(px,py,x1,y1,x2,y2){ const num=Math.abs((py-y1)*(x2-x1)-(px-x1)*(y2-y1)); const den=Math.hypot(x2-x1,y2-y1); return num/den; } const corridor=new Set(); const [sx,sy]=START.coord,[ex,ey]=EXIT.coord; const corridorWidth=60; coords.forEach((p,i)=>{ const d=dPL(p[0],p[1],sx,sy,ex,ey); if(d<=corridorWidth) corridor.add('L'+i); }); const allInc=[]; Object.values(incidentCosts).forEach(lst=>lst.forEach(v=>allInc.push(v))); allInc.sort((a,b)=>a-b); const medThr=allInc[Math.floor(allInc.length*0.50)]||2; const longThr=allInc[Math.floor(allInc.length*0.80)]||5; const scores=locations.map((_,i)=>{ const arr=(incidentCosts['L'+i]||[]).slice().sort((a,b)=>b-a); return (arr[0]||0)+(arr[1]||0); }); locations.forEach((_,i)=>{ const key='L'+i; const costs=incidentCosts[key]||[]; const numLong=costs.filter(c=>c>=longThr).length; const numMed=costs.filter(c=>c>=medThr).length; let reward=2; if(numLong>=1 || numMed>=2) reward=3; if(corridor.has(key)) reward=Math.min(reward,2); locationRewards[i]=reward; }); const candidates=scores.map((s,i)=>({i,s})).filter(o=>!corridor.has('L'+o.i)).sort((a,b)=>b.s-a.s); for(let k=0;k<Math.min(2,candidates.length);k++){ const idx=candidates[k].i; if(locationRewards[idx]===3) locationRewards[idx]=4; } locationRewards[10]=2; locationRewards[8]=2; }
+
+    function renderEdges(){ edgesLayer.innerHTML=''; const done=new Set(); Object.keys(adj).forEach(a=>{ adj[a].forEach(b=>{ const pk=edgePairKey(a,b); if(done.has(pk))return; done.add(pk); const [x1,y1]=keyToCoord(a),[x2,y2]=keyToCoord(b); const cost=computeEdgeCost(a,b); const line=document.createElementNS('http://www.w3.org/2000/svg','line'); line.setAttribute('x1',x1); line.setAttribute('y1',y1); line.setAttribute('x2',x2); line.setAttribute('y2',y2); line.setAttribute('data-pair',pk); edgesLayer.appendChild(line); const label=document.createElementNS('http://www.w3.org/2000/svg','text'); const mx=(x1+x2)/2,my=(y1+y2)/2; label.setAttribute('x',mx); label.setAttribute('y',my-6); label.setAttribute('text-anchor','middle'); label.setAttribute('class','edge-label'); label.setAttribute('data-pair',pk); label.textContent=cost+' L'; edgesLayer.appendChild(label); }); }); }
+
+    function renderMarkers(){ [...svg.querySelectorAll('.marker')].forEach(m=>m.remove()); function makeMarker(key,isBase=false){ const [x,y]=keyToCoord(key); const g=document.createElementNS('http://www.w3.org/2000/svg','g'); g.classList.add('marker'); g.setAttribute('transform',`translate(${x},${y})`); g.setAttribute('data-key',key); g.style.cursor='pointer'; const r=(key==='S'||key==='E'||isBase)?14:11; const c=document.createElementNS('http://www.w3.org/2000/svg','circle'); c.setAttribute('r',r); c.setAttribute('cx',0); c.setAttribute('cy',0); if(key==='S'||key==='E'){ c.setAttribute('fill','#fff'); c.setAttribute('stroke','#000'); c.setAttribute('stroke-width','3'); } else if(isBase){ c.setAttribute('fill','#e6f3f7'); c.setAttribute('stroke','#1f6f8b'); c.setAttribute('stroke-width','3'); } else { c.setAttribute('fill','#ffe9b8'); c.setAttribute('stroke','#5d430f'); c.setAttribute('stroke-width','2'); } c.setAttribute('filter','url(#markerShadow)'); const t=document.createElementNS('http://www.w3.org/2000/svg','text'); t.textContent=keyToName(key); t.setAttribute('x',0); t.setAttribute('y',-r-10); t.setAttribute('text-anchor','middle'); t.setAttribute('font-size','13'); t.setAttribute('font-weight','700'); t.setAttribute('fill','#503a0e'); t.setAttribute('paint-order','stroke'); t.setAttribute('stroke','rgba(255,255,255,.85)'); t.setAttribute('stroke-width','3'); g.appendChild(c); g.appendChild(t); if(key!=='S' && key!=='E'){ const idx=parseInt(key.slice(1)); const reward=locationRewards[idx]||2; const fuelText=document.createElementNS('http://www.w3.org/2000/svg','text'); fuelText.textContent=`+${reward} L`; fuelText.setAttribute('x',0); fuelText.setAttribute('y', r+16); fuelText.setAttribute('text-anchor','middle'); fuelText.setAttribute('class','fuel-label'); g.appendChild(fuelText); } if(key==='S') g.addEventListener('click',()=>showToast('Startpunkt. Wähle einen verbundenen Ort.')); else if(key==='E') g.addEventListener('click', onExitClick); else { const idx=parseInt(key.slice(1)); g.addEventListener('click', ()=>onLocationClick(idx)); } svg.appendChild(g); } makeMarker('S'); locations.forEach((loc,i)=>makeMarker('L'+i, loc.name==='Basisstation')); makeMarker('E'); updateReachableVisual(); updateVisitedMarkers(); updateJeepEmoji(); }
+
+    function updateVisitedMarkers(){ svg.querySelectorAll('.marker').forEach(g=>{ const key=g.getAttribute('data-key'); if(!key.startsWith('L')) return; const idx=parseInt(key.slice(1)); const circle=g.querySelector('circle'); const was=visited.has(idx); const isBase=(locations[idx].name==='Basisstation'); circle.setAttribute('fill', was? '#c7f2c7' : (isBase? '#e6f3f7' : '#ffe9b8')); circle.setAttribute('stroke', was? '#2e7d32' : (isBase? '#1f6f8b':'#5d430f')); circle.setAttribute('stroke-width', was||isBase ? '3':'2'); }); }
+    function updateReachableVisual(){ svg.querySelectorAll('.marker').forEach(g=>g.classList.remove('currentMarker','reachable')); const cur=svg.querySelector(`.marker[data-key="${currentKey}"]`); if(cur) cur.classList.add('currentMarker'); (adj[currentKey]||[]).forEach(k=>{ const el=svg.querySelector(`.marker[data-key="${k}"]`); if(el) el.classList.add('reachable'); }); }
+
+    function markEdgeUsed(a,b){ const pk=edgePairKey(a,b); const line=edgesLayer.querySelector(`line[data-pair='${pk}']`); const lab=edgesLayer.querySelector(`text[data-pair='${pk}']`); if(line) line.classList.add('used'); if(lab) lab.classList.add('used'); }
+    function appendToRoute(key){ const [x,y]=keyToCoord(key); const pts=(route.getAttribute('points')||'').trim(); route.setAttribute('points', (pts?pts+' ':'')+`${x},${y}`); }
+
+    function generateTask(index){ const baseA=locations[index].a, baseB=locations[index].b, hyp=Math.hypot(baseA,baseB); const ra=['A','B','C'][Math.floor(Math.random()*3)]; let values; if(ra==='C') values={a:baseA,b:baseB,c:hyp}; else if(ra==='A') values={a:hyp,b:baseA,c:baseB}; else values={a:baseA,b:hyp,c:baseB}; const unknown=['a','b','c'][Math.floor(Math.random()*3)]; const expected=expectedFor({rightAngle:ra, values, unknown}); return {index,rightAngle:ra,values,unknown,expected}; }
+    function expectedFor(task){ const hypVar=(task.rightAngle==='A'?'a':task.rightAngle==='B'?'b':'c'); if(task.unknown===hypVar){ const legs=['a','b','c'].filter(s=>s!==hypVar); return Math.hypot(task.values[legs[0]], task.values[legs[1]]); } else { const otherLeg=['a','b','c'].find(s=>s!==hypVar && s!==task.unknown); const h=task.values[hypVar]; return Math.sqrt(Math.max(0, h*h - task.values[otherLeg]*task.values[otherLeg])); } }
+    function taskHtml(task){ const fmt=v=>v.toFixed(2).replace('.',','); const val=s=> s===task.unknown ? '?' : fmt(task.values[s]); return `Rechter Winkel bei <strong>${task.rightAngle}</strong>.<br>Gegeben: a=<strong>${val('a')}</strong>, b=<strong>${val('b')}</strong>, c=<strong>${val('c')}</strong>.<br>Berechne <strong>${task.unknown}</strong>.`; }
+
+    function canAffordMove(fromKey,toKey){ const cost=computeEdgeCost(fromKey,toKey); return fuel >= cost; }
+    function strandedCheck(){ const options=(adj[currentKey]||[]); const anyReachable=options.some(k=>canAffordMove(currentKey,k)); if(!anyReachable && currentKey!=='E'){ endGame(false,'Du bist in der Wüste gestrandet – keine Fahrt mehr möglich.'); return true; } return false; }
+
+    function onLocationClick(index){ if(isAnimating){ showToast('Warte, der Jeep fährt gerade...'); return; } if(gameOver) return; const key='L'+index; const reachable=(adj[currentKey]||[]).includes(key); if(!reachable){ showToast('Nicht verbunden.'); return; } const cost=computeEdgeCost(currentKey,key); if(fuel<=0){ showToast('Kein Sprit. Helikopter rufen für +5 L.'); strandedCheck(); return; } if(fuel<cost){ showToast(`Nicht genug Sprit für diese Strecke (${cost} L).`); strandedCheck(); return; } fuel-=cost; moves+=1; appendToRoute(key); markEdgeUsed(currentKey,key); currentKey=key; animateJeepTo(currentKey, {}, ()=>{ openTaskFor(index); }); updateFuel(); updateStats(); showToast(`Fahrt: -${cost} L`);  }
+    function onExitClick(){ if(isAnimating){ showToast('Warte, der Jeep fährt gerade...'); return; } if(gameOver) return; const key='E'; const reachable=(adj[currentKey]||[]).includes(key); if(!reachable){ showToast('Ausgang hier nicht erreichbar.'); return; } const cost=computeEdgeCost(currentKey,key); if(fuel<=0){ showToast('Kein Sprit. Helikopter rufen für +5 L.'); strandedCheck(); return; } if(fuel<cost){ showToast(`Nicht genug Sprit für den Ausgang (${cost} L).`); strandedCheck(); return; } fuel-=cost; moves+=1; appendToRoute(key); markEdgeUsed(currentKey,key); currentKey=key; animateJeepTo(currentKey, {}, ()=>{ endGame(true,'Du hast die Wüste oben rechts erreicht!'); }); updateFuel(); updateStats(); showToast(`Fahrt zum Ausgang: -${cost} L`);  }
+
+    function openTaskFor(index){ currentTask=generateTask(index); taskTitle.textContent=locations[index].name; taskText.innerHTML=taskHtml(currentTask); answerInput.value=''; taskOverlay.classList.add('show'); setTimeout(()=>answerInput.focus(),0); }
+    function checkAnswer(){ if(!currentTask) return; const v=parseNumber(answerInput.value); if(v==null){ showToast('Bitte Zahl eingeben.'); return;} const ok=Math.abs(v-currentTask.expected)<=0.01; const idx=currentTask.index; if(ok){ const firstTime=!visited.has(idx); if(firstTime){ const gain=locationRewards[idx]||2; fuel=Math.min(maxFuel, fuel+gain); visited.add(idx); if(locations[idx].name==='Basisstation') baseVisited=true; showToast(`Richtig! +${gain} L`); } else { showToast('Richtig (ohne zusätzliche Belohnung).'); } updateVisitedMarkers(); } else { showToast('Leider falsch.'); } updateFuel(); updateStats(); taskOverlay.classList.remove('show'); currentTask=null; strandedCheck(); }
+
+    // Helikopter – Single-Choice (+5 L bei Antwort b)
+    function onHeliSubmit(){
+      const sel=[...document.querySelectorAll('input[name="sc"]')].find(r=>r.checked);
+      if(!sel){ showToast('Bitte eine Antwort auswählen.'); return; }
+      if(sel.value==='b'){ fuel=Math.min(maxFuel,fuel+5); heliUsed=true; updateFuel(); showToast('+5 L durch Helikopter-Notration!'); }
+      else { heliUsed=true; showToast('Keine Zusatz-Liter.'); }
+      heliOverlay.classList.remove('show');
+      // Button im Spielfeld optisch deaktivieren
+      heliSvgBtn.querySelector('rect').setAttribute('fill','#607d8b');
+      const texts = heliSvgBtn.querySelectorAll('text');
+      if(texts[0]) texts[0].textContent='🚁 Helikopter (genutzt)';
+      if(texts[1]) texts[1].textContent='';
+      strandedCheck();
+    }
+    document.getElementById('heliSubmit').addEventListener('click', onHeliSubmit);
+
+    function endGame(success, reason=''){ gameOver=true; endTitle.textContent= success? 'Mission geschafft!':'Du bist gestrandet…'; endText.textContent= reason || (success?'Gut gemacht!':''); const score=Math.max(0, Math.round(100 + fuel - moves*3)); scoreEl.textContent=score; endOverlay.classList.add('show'); }
+
+    function updateFuel(){ const pct=Math.max(0,Math.min(100,(fuel/maxFuel)*100)); fuelBar.style.width=pct+'%'; fuelBar.style.background = (fuel<=3)?'linear-gradient(90deg,#f44336,#e53935)':(fuel<=6)?'linear-gradient(90deg,#ff9800,#fb8c00)':'linear-gradient(90deg,#76c893,#4caf50)'; fuelLabel.textContent=`${Math.round(fuel)} / ${maxFuel} L`; }
+    function updateStats(){ movesEl.textContent=moves; visitedEl.textContent=visited.size; updateReachableVisual(); }
+
+    function resetGame(){ fuel=10; moves=0; visited=new Set(); baseVisited=false; heliUsed=false; gameOver=false; currentKey='S'; currentTask=null; route.setAttribute('points', `${START.coord[0]},${START.coord[1]}`); edgesLayer.querySelectorAll('line.used').forEach(el=>el.classList.remove('used')); edgesLayer.querySelectorAll('text.edge-label.used').forEach(el=>el.classList.remove('used')); computeRewards(); renderMarkers(); updateFuel(); updateStats(); taskOverlay.classList.remove('show'); heliOverlay.classList.remove('show'); endOverlay.classList.remove('show'); document.querySelectorAll('input[name="sc"]').forEach(r=> r.checked=false); heliSvgBtn.querySelector('rect').setAttribute('fill','#1f6f8b'); const texts = heliSvgBtn.querySelectorAll('text'); if(texts[0]) texts[0].textContent='🚁 Helikopter'; if(texts[1]) texts[1].textContent='(einmalig)';   isAnimating=false; [jeepX,jeepY]=START.coord.slice(); updateJeepEmoji();
+}
+
+    function toggleFullscreen(){ const app=document.getElementById('app'); if(!document.fullscreenElement){ app.requestFullscreen().catch(()=>{ showToast('Vollbild nicht verfügbar.'); }); fsBtnHud.textContent='⛶ Vollbild beenden'; } else { document.exitFullscreen(); fsBtnHud.textContent='⛶ Vollbild'; } }
+
+    (function init(){ renderEdges(); computeRewards(); renderMarkers(); route.setAttribute('points', `${START.coord[0]},${START.coord[1]}`); updateFuel(); updateStats(); })();
+  </script>
+</body>
+</html>
