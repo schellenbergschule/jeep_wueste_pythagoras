@@ -54,7 +54,7 @@
     <div class="hud">
       <div class="fuel" aria-label="Tankanzeige">
         <div id="fuelBar" class="bar"></div>
-        <div id="fuelLabel" class="label">10 / 15 L</div>
+        <div id="fuelLabel" class="label">6 / 15 L</div>
       </div>
       <div class="stat">Züge: <span id="moves">0</span></div>
       <div class="stat">Besuchte Orte: <span id="visited">0</span>/20</div>
@@ -91,7 +91,21 @@
   </div>
 
   <!-- Start Overlay -->
-  <div id="startOverlay" class="overlay show"><div class="modal centered"><h2>Jeep bereit.</h2><p><strong>Schaffst du es, mit dem Jeep die Wüste zu durchqueren, bevor der Sprit ausgeht?</strong><br>Wähle deinen Weg klug – tanke an den richtigen Orten nach und plane so, dass du zur passenden Zeit <em>Spritnachschub</em> bekommst.</p><div class="row" style="justify-content:center"><button id="startBtn" class="btn">Spiel starten</button></div></div></div>
+  <div id="startOverlay" class="overlay show"><div class="modal centered"><h2>Jeep bereit.</h2><p><strong>Schaffst du es, mit dem Jeep die Wüste zu durchqueren, bevor der Sprit ausgeht?</strong><br>Wähle deinen Weg klug – tanke an den richtigen Orten nach und plane so, dass du zur passenden Zeit <em>Spritnachschub</em> bekommst.
+      <div class="howto">
+        <h3 style="margin-top:.6rem">Deine Challenges</h3>
+        <ol style="margin-top:.2rem">
+          <li><strong>Durch die Wüste kommen</strong> – erreiche den Ausgang oben rechts.</li>
+          <li><strong>Möglichst viele Punkte holen</strong> – optimiere Sprit und Züge.</li>
+        </ol>
+        <h3 style="margin-top:.6rem">Punkte – so funktioniert’s</h3>
+        <ul style="margin-top:.2rem">
+          <li><strong>Formel:</strong> Punkte = 100 + Rest‑Sprit − 3 × Züge (mind. 0 Punkte).</li>
+          <li>Weniger Züge bedeuten mehr Punkte.</li>
+          <li>Mehr <strong>Sprit</strong> am Ende bringt mehr Punkte: tanke an Orten (+2/3/4 L), nutze ggf. die Basisstation und die Helikopter‑Notration (+5 L, einmalig).</li>
+        </ul>
+      </div>
+</p><div class="row" style="justify-content:center"><button id="startBtn" class="btn">Spiel starten</button></div></div></div>
 
   <!-- Task Modal -->
   <div id="taskOverlay" class="overlay"><div class="modal"><h2 id="taskTitle">Ort</h2><p id="taskText">Aufgabe</p><div class="row"><input id="answerInput" type="text" inputmode="decimal" placeholder="Deine Lösung (z. B. 14.14)"/><button id="submitAnswer" class="btn">Antwort prüfen</button></div><p class="hint">Toleranz ±0,01 | Dezimal: Punkt oder Komma</p><div class="row" style="justify-content:flex-end"><button id="closeTask" class="btn secondary">Schließen</button></div></div></div>
@@ -102,11 +116,26 @@
     <label class="radio"><input type="radio" name="sc" value="b"> b) Kathete im Quadrat mal Kathete im Quadrat gleich Hypotenuse im Quadrat</label>
     <label class="radio"><input type="radio" name="sc" value="c"> c) a mal b = c</label>
     <label class="radio"><input type="radio" name="sc" value="d"> d) Zweimal Kathete im Quadrat gleich Hypotenuse im Quadrat</label>
+      <label class="radio"><input type="radio" name="sc" value="none"> Keine dieser Antworten ist korrekt</label>
     <div class="row" style="justify-content:flex-end;margin-top:.5rem"><button id="heliSubmit" class="btn">Antwort prüfen (+5 L)</button></div>
   </div></div>
 
   <!-- End Overlay -->
-  <div id="endOverlay" class="overlay"><div class="modal centered"><h2 id="endTitle">Mission</h2><p id="endText">Ergebnis</p><p>Punkte: <strong id="score">0</strong></p><div class="row" style="justify-content:center"><button id="playAgain" class="btn">Nochmal spielen</button></div></div></div>
+  <div id="endOverlay" class="overlay"><div class="modal centered"><h2 id="endTitle">Mission</h2><p id="endText">Ergebnis</p><p>Punkte: <strong id="score">0</strong>
+      <div class="howto">
+        <h3 style="margin-top:.6rem">Deine Challenges</h3>
+        <ol style="margin-top:.2rem">
+          <li><strong>Durch die Wüste kommen</strong> – erreiche den Ausgang oben rechts.</li>
+          <li><strong>Möglichst viele Punkte holen</strong> – optimiere Sprit und Züge.</li>
+        </ol>
+        <h3 style="margin-top:.6rem">Punkte – so funktioniert’s</h3>
+        <ul style="margin-top:.2rem">
+          <li><strong>Formel:</strong> Punkte = 100 + Rest‑Sprit − 3 × Züge (mind. 0 Punkte).</li>
+          <li>Weniger Züge bedeuten mehr Punkte.</li>
+          <li>Mehr <strong>Sprit</strong> am Ende bringt mehr Punkte: tanke an Orten (+2/3/4 L), nutze ggf. die Basisstation und die Helikopter‑Notration (+5 L, einmalig).</li>
+        </ul>
+      </div>
+</p><div class="row" style="justify-content:center"><button id="playAgain" class="btn">Nochmal spielen</button></div></div></div>
 
   <div id="toast" role="status" aria-live="polite"></div>
 
@@ -137,7 +166,7 @@
       'L10':['L16','L7','L8','E'], 'L19':['L16','E'], 'L7':['L8','L10','L4','L9','L12'], 'L8':['L7','L11','L10','E'], 'L11':['L9','L12','L8'], 'L9':['L12','L3','L7','L11'], 'L12':['L3','L9','L11','L4','L7'], 'L4':['L3','L12','L7','L6']
     };
 
-    let fuel = 10; let moves = 0; let visited = new Set(); let baseVisited=false; let heliUsed=false; let gameOver=false; let currentKey='S'; let currentTask=null; let locationRewards = Array(locations.length).fill(2);
+    let fuel = 6; let moves = 0; let visited = new Set(); let baseVisited=false; let heliUsed=false; let gameOver=false; let currentKey='S'; let currentTask=null; let locationRewards = Array(locations.length).fill(2);
 
     const svg=document.getElementById('desert'); const edgesLayer=document.getElementById('edges'); const route=document.getElementById('route'); const fuelBar=document.getElementById('fuelBar'); const fuelLabel=document.getElementById('fuelLabel'); const movesEl=document.getElementById('moves'); const visitedEl=document.getElementById('visited'); const toast=document.getElementById('toast');
 
@@ -238,7 +267,7 @@
     function onHeliSubmit(){
       const sel=[...document.querySelectorAll('input[name="sc"]')].find(r=>r.checked);
       if(!sel){ showToast('Bitte eine Antwort auswählen.'); return; }
-      if(sel.value==='b'){ fuel=Math.min(maxFuel,fuel+5); heliUsed=true; updateFuel(); showToast('+5 L durch Helikopter-Notration!'); }
+      if(sel.value==='none'){ fuel=Math.min(maxFuel,fuel+5); heliUsed=true; updateFuel(); showToast('+5 L durch Helikopter-Notration!'); }
       else { heliUsed=true; showToast('Keine Zusatz-Liter.'); }
       heliOverlay.classList.remove('show');
       // Button im Spielfeld optisch deaktivieren
@@ -255,7 +284,7 @@
     function updateFuel(){ const pct=Math.max(0,Math.min(100,(fuel/maxFuel)*100)); fuelBar.style.width=pct+'%'; fuelBar.style.background = (fuel<=3)?'linear-gradient(90deg,#f44336,#e53935)':(fuel<=6)?'linear-gradient(90deg,#ff9800,#fb8c00)':'linear-gradient(90deg,#76c893,#4caf50)'; fuelLabel.textContent=`${Math.round(fuel)} / ${maxFuel} L`; }
     function updateStats(){ movesEl.textContent=moves; visitedEl.textContent=visited.size; updateReachableVisual(); }
 
-    function resetGame(){ fuel=10; moves=0; visited=new Set(); baseVisited=false; heliUsed=false; gameOver=false; currentKey='S'; currentTask=null; route.setAttribute('points', `${START.coord[0]},${START.coord[1]}`); edgesLayer.querySelectorAll('line.used').forEach(el=>el.classList.remove('used')); edgesLayer.querySelectorAll('text.edge-label.used').forEach(el=>el.classList.remove('used')); computeRewards(); renderMarkers(); updateFuel(); updateStats(); taskOverlay.classList.remove('show'); heliOverlay.classList.remove('show'); endOverlay.classList.remove('show'); document.querySelectorAll('input[name="sc"]').forEach(r=> r.checked=false); heliSvgBtn.querySelector('rect').setAttribute('fill','#1f6f8b'); const texts = heliSvgBtn.querySelectorAll('text'); if(texts[0]) texts[0].textContent='🚁 Helikopter'; if(texts[1]) texts[1].textContent='(einmalig)';   isAnimating=false; [jeepX,jeepY]=START.coord.slice(); updateJeepEmoji();
+    function resetGame(){ fuel=6; moves=0; visited=new Set(); baseVisited=false; heliUsed=false; gameOver=false; currentKey='S'; currentTask=null; route.setAttribute('points', `${START.coord[0]},${START.coord[1]}`); edgesLayer.querySelectorAll('line.used').forEach(el=>el.classList.remove('used')); edgesLayer.querySelectorAll('text.edge-label.used').forEach(el=>el.classList.remove('used')); computeRewards(); renderMarkers(); updateFuel(); updateStats(); taskOverlay.classList.remove('show'); heliOverlay.classList.remove('show'); endOverlay.classList.remove('show'); document.querySelectorAll('input[name="sc"]').forEach(r=> r.checked=false); heliSvgBtn.querySelector('rect').setAttribute('fill','#1f6f8b'); const texts = heliSvgBtn.querySelectorAll('text'); if(texts[0]) texts[0].textContent='🚁 Helikopter'; if(texts[1]) texts[1].textContent='(einmalig)';   isAnimating=false; [jeepX,jeepY]=START.coord.slice(); updateJeepEmoji();
 }
 
     function toggleFullscreen(){ const app=document.getElementById('app'); if(!document.fullscreenElement){ app.requestFullscreen().catch(()=>{ showToast('Vollbild nicht verfügbar.'); }); fsBtnHud.textContent='⛶ Vollbild beenden'; } else { document.exitFullscreen(); fsBtnHud.textContent='⛶ Vollbild'; } }
